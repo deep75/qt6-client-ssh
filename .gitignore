@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 .ruff_cache/
 .venv/
+deployment/
+.claude/settings.local.json
