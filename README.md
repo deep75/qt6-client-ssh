@@ -102,7 +102,8 @@ manages the Python environment and can build a wheel; a standalone executable re
 
 ### Python wheel (`uv build`)
 
-Produces a `.whl` installable with pip. End users still need Python and the runtime dependencies.
+Produces a `.whl` installable with pip/uv. End users still need Python and the runtime
+dependencies (PySide6, paramiko) — this is not a standalone binary, just a distributable package.
 
 ```bash
 cd ssh_client_gui
@@ -110,6 +111,40 @@ uv build
 ```
 
 Output: `dist/ssh_client_gui-0.1.0-py3-none-any.whl`
+
+To verify the wheel in isolation, install it into a fresh environment (using a uv-managed Python,
+independent of any system/conda interpreter) and run the generated console script:
+
+```bash
+uv python install 3.13
+uv venv --python 3.13 --managed-python /tmp/ssh-client-gui-test
+uv pip install --python /tmp/ssh-client-gui-test/bin/python dist/ssh_client_gui-0.1.0-py3-none-any.whl
+cd /tmp   # run from outside the source checkout, see caveat below
+/tmp/ssh-client-gui-test/bin/ssh-client-gui
+```
+
+This installs `PySide6`, `paramiko` and their dependencies automatically and launches the GUI.
+
+**Caveat — flat module layout.** `pyproject.toml`'s `only-include` lists individual files
+(`main.py`, `bridge.py`, `models.py`, `ssh_worker.py`) instead of a proper package directory, so
+`uv build` installs them as **top-level modules directly in `site-packages`**, not namespaced under
+a package:
+
+```
+site-packages/
+  main.py
+  bridge.py
+  models.py
+  ssh_worker.py
+  qml/
+```
+
+With generic names like `main`, `bridge`, `models`, this risks silently colliding with another
+installed package's modules. It's also why the wheel must be tested from outside the repository:
+running from the checkout directory picks up the local `main.py` (via `sys.path[0]` = cwd) instead
+of the installed one, masking the very modules you're trying to test. Restructuring
+`ssh_client_gui` into a real package (a directory with `__init__.py`, relative imports) is the
+proper fix and is planned/recommended, but not yet done.
 
 ### Native executable (`pyside6-deploy` + Nuitka)
 
