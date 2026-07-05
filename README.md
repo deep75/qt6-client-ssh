@@ -1,4 +1,4 @@
-# qt6-client-ssh
+# Qt6-client-ssh
 
 A desktop SSH client built with **PySide6** (Qt 6 for Python), using **QML / Qt Quick** for the UI
 and **paramiko** as the SSH backend.
