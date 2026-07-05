@@ -23,6 +23,8 @@ ssh_client_gui/
     Main.qml              application window, header/status bar, error banner
     ConnectionForm.qml     connection form (left panel)
     OutputPanel.qml        terminal output + command input (right panel)
+  pyproject.toml           project metadata and dependencies (managed by uv)
+  uv.lock                  locked dependency versions
   ruff.toml               Ruff config (camelCase names in bridge.py are QML API, not Python API)
   pysidedeploy.spec        pyside6-deploy/Nuitka packaging config (see Packaging below)
 ```
@@ -37,24 +39,34 @@ locking is needed.
 
 ## Requirements
 
-- Python 3.10+
-- [Qt for Python (PySide6)](https://doc.qt.io/qtforpython-6/) 6.4+ (uses `QtQuick.Controls.Material`,
-  `QmlElement`)
-- [paramiko](https://www.paramiko.org/)
-- [uv](https://docs.astral.sh/uv/) (recommended for managing the virtual environment)
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (recommended for managing the virtual environment and dependencies)
+- [Qt for Python (PySide6)](https://doc.qt.io/qtforpython-6/) 6.6+ (installed automatically via `uv sync`)
+- [paramiko](https://www.paramiko.org/) (installed automatically via `uv sync`)
 
 ## Installation
 
+From the repository root:
+
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install PySide6 paramiko
+cd ssh_client_gui
+uv sync
 ```
+
+This creates a virtual environment, installs locked dependencies from `uv.lock`, and registers the
+`ssh-client-gui` console script.
 
 ## Running
 
 ```bash
-python ssh_client_gui/main.py
+cd ssh_client_gui
+uv run ssh-client-gui
+```
+
+Alternatively:
+
+```bash
+uv run python main.py
 ```
 
 Fill in the connection form on the left, choose password or private-key authentication, and click
@@ -75,14 +87,31 @@ Static analysis is run with [Ruff](https://docs.astral.sh/ruff/) and
 
 ```bash
 uv pip install ruff ty
-ruff check ssh_client_gui/
-ty check ssh_client_gui/
+ruff check .
+ty check .
 ```
 
-`ssh_client_gui/ruff.toml` ignores `N802`/`N815` (camelCase naming) specifically in `bridge.py`,
-since those names are the Qt/QML API surface, not Python API.
+`ruff.toml` ignores `N802`/`N815` (camelCase naming) specifically in `bridge.py`, since those
+names are the Qt/QML API surface, not Python API.
 
-## Packaging (Linux)
+## Packaging
+
+There are two distinct packaging paths. **uv does not compile a native Qt binary on its own** — it
+manages the Python environment and can build a wheel; a standalone executable requires
+**`pyside6-deploy`** (bundled with PySide6) and **Nuitka**.
+
+### Python wheel (`uv build`)
+
+Produces a `.whl` installable with pip. End users still need Python and the runtime dependencies.
+
+```bash
+cd ssh_client_gui
+uv build
+```
+
+Output: `dist/ssh_client_gui-0.1.0-py3-none-any.whl`
+
+### Native executable (`pyside6-deploy` + Nuitka)
 
 Qt/PySide6 ships an official deployment tool, **`pyside6-deploy`**, which uses
 [Nuitka](https://nuitka.net/) to compile the app and PySide6 into a standalone native executable —
@@ -98,18 +127,20 @@ sudo apt install patchelf gcc
 Build:
 
 ```bash
-uv pip install nuitka patchelf
 cd ssh_client_gui
-pyside6-deploy -c pysidedeploy.spec -f
+uv sync
+uv pip install nuitka patchelf
+.venv/bin/pyside6-deploy -c pysidedeploy.spec -f
 ```
 
-This produces a standalone folder at `ssh_client_gui/deployment/main.dist/`, with the executable at
+This produces a standalone folder at `deployment/main.dist/`, with the executable at
 `main.dist/ssh_client_gui.bin` (or a single binary if you switch `mode` to `onefile` in
 `pysidedeploy.spec`).
 
 Notes on `pysidedeploy.spec`:
-- `python_path` defaults to `python3` — point it at your venv's interpreter
-  (e.g. `.venv/bin/python3`) if it's not the one on your `PATH`.
+
+- Set `python_path` to your venv interpreter (e.g. `.venv/bin/python3`) so Nuitka uses the same
+  Python and packages as `uv sync`.
 - `extra_args` includes `--static-libpython=no`: many Linux Python builds (Anaconda/conda-forge,
   or Debian/Ubuntu without `python3-dev`) don't ship a usable static `libpython`, which makes
   Nuitka fail with "Automatic detection of static libpython failed". Disabling it links against
