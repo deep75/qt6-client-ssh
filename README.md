@@ -75,8 +75,6 @@ Fill in the connection form on the left, choose password or private-key authenti
 
 ### Known limitations
 
-- Host key verification uses paramiko's `AutoAddPolicy` (new host keys are trusted automatically).
-  Harden this to `RejectPolicy` + a known_hosts file if you need strict verification.
 - The output panel is a plain text sink, not a full ANSI terminal emulator — escape sequences from
   the remote shell (colors, cursor movement) are shown as-is rather than interpreted.
 
