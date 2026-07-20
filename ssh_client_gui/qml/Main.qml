@@ -13,6 +13,9 @@ ApplicationWindow {
 
     Material.theme: Material.Dark
     Material.accent: Material.LightBlue
+    property string unknownHostName: ""
+    property string unknownHostKeyType: ""
+    property string unknownHostFingerprint: ""
 
     SshBridge {
         id: bridge
@@ -24,6 +27,12 @@ ApplicationWindow {
             errorBanner.text = message
             errorBanner.visible = true
             errorTimer.restart()
+        }
+        function onHost_key_unknown(hostname, key_type, fingerprint) {
+            window.unknownHostName = hostname
+            window.unknownHostKeyType = key_type
+            window.unknownHostFingerprint = fingerprint
+            hostKeyDialog.open()
         }
     }
 
@@ -96,6 +105,29 @@ ApplicationWindow {
             anchors.centerIn: parent
             color: "white"
             wrapMode: Text.WordWrap
+        }
+    }
+
+    Dialog {
+        id: hostKeyDialog
+        modal: true
+        title: "Clé hôte inconnue"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        closePolicy: Popup.NoAutoClose
+        onAccepted: bridge.acceptHostKey(
+                        window.unknownHostName,
+                        window.unknownHostKeyType,
+                        bridge.pendingHostKeyBase64
+                    )
+
+        contentItem: Label {
+            width: 420
+            wrapMode: Text.WordWrap
+            text: "Le serveur " + window.unknownHostName
+                + " présente une clé hôte inconnue.\n\nType: "
+                + window.unknownHostKeyType
+                + "\nEmpreinte: " + window.unknownHostFingerprint
+                + "\n\nAccepter cette clé et l'enregistrer dans known_hosts ?"
         }
     }
 }

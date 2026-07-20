@@ -11,6 +11,7 @@ class ConnectionConfig:
     key_path: str = ""
     passphrase: str = ""
     timeout: int = 10
+    known_hosts_file: str = "~/.ssh/known_hosts"
 
     @property
     def label(self) -> str:
